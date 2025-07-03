@@ -1,13 +1,34 @@
 import os
+import time
+from datetime import datetime
 from dotenv import load_dotenv
 _ = load_dotenv()
+
+# Timing utility functions
+def print_timestamp(label=""):
+    """Print current timestamp with optional label"""
+    current_time = datetime.now().strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
+    print(f"[{current_time}] {label}")
+
+def time_execution(func_name="Operation"):
+    """Context manager or decorator for timing operations"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+            print_timestamp(f"Starting {func_name}")
+            result = func(*args, **kwargs)
+            end_time = time.perf_counter()
+            duration = end_time - start_time
+            print_timestamp(f"Completed {func_name} - Duration: {duration:.3f} seconds")
+            return result
+        return wrapper
+    return decorator
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 from langchain.chat_models import init_chat_model
 
 llm = init_chat_model("openai:gpt-4o-mini", temperature=0.0)
-
 
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict, Literal, Annotated
@@ -18,9 +39,10 @@ from langgraph.store.memory import InMemoryStore
 
 from prompts import triage_system_prompt, triage_user_prompt, agent_system_prompt
 
-
-llm = ChatOllama(model="llama3.2:latest", temperature=0.0)
-
+#####################Local Chat Ollama model######################
+# Uncomment the following lines to use a local Ollama model instead of OpenAI
+#llm = ChatOllama(model="llama3.2:latest", temperature=0.0)
+######################Local Chat Ollama model######################
 profile = {
     "name": "John",
     "full_name": "John Doe",
@@ -71,8 +93,12 @@ llm_router = llm.with_structured_output(Router)
 @tool
 def write_email(to: str, subject: str, content: str) -> str:
     """Write and send an email."""
+    print_timestamp(f"Tool: write_email called for {to}")
     # Placeholder response - in real app would send email
-    return f"Email sent to {to} with subject '{subject}'"
+    time.sleep(0.1)  # Simulate some processing time
+    result = f"Email sent to {to} with subject '{subject}'"
+    print_timestamp(f"Tool: write_email completed")
+    return result
 
 @tool
 def schedule_meeting(
@@ -82,14 +108,22 @@ def schedule_meeting(
     preferred_day: str
 ) -> str:
     """Schedule a calendar meeting."""
+    print_timestamp(f"Tool: schedule_meeting called for {preferred_day}")
     # Placeholder response - in real app would check calendar and schedule
-    return f"Meeting '{subject}' scheduled for {preferred_day} with {len(attendees)} attendees"
+    time.sleep(0.2)  # Simulate some processing time
+    result = f"Meeting '{subject}' scheduled for {preferred_day} with {len(attendees)} attendees"
+    print_timestamp(f"Tool: schedule_meeting completed")
+    return result
 
 @tool
 def check_calendar_availability(day: str) -> str:
     """Check calendar availability for a given day."""
+    print_timestamp(f"Tool: check_calendar_availability called for {day}")
     # Placeholder response - in real app would check actual calendar
-    return f"Available times on {day}: 9:00 AM, 2:00 PM, 4:00 PM"
+    time.sleep(0.15)  # Simulate some processing time
+    result = f"Available times on {day}: 9:00 AM, 2:00 PM, 4:00 PM"
+    print_timestamp(f"Tool: check_calendar_availability completed")
+    return result
 
 
 store = InMemoryStore(
@@ -176,10 +210,43 @@ response_agent = create_react_agent(
 
 config = {"configurable": {"langgraph_user_id": "lance"}}
 
+# Timing the first agent invocation
+print_timestamp("About to invoke agent with 'Jim is my friend'")
+start_time = time.perf_counter()
+
 response = response_agent.invoke(
     {"messages": [{"role": "user", "content": "Jim is my friend"}]},
     config=config # type: ignore
 )
 
-for m in response["messages"]:
-    m.pretty_print()
+end_time = time.perf_counter()
+duration = end_time - start_time
+print_timestamp(f"First agent invocation completed - Duration: {duration:.3f} seconds")
+
+# for m in response["messages"]:
+#     m.pretty_print()
+
+# Timing the second agent invocation
+print_timestamp("About to invoke agent with 'who is Jim?'")
+start_time2 = time.perf_counter()
+
+response2 = response_agent.invoke(
+    {"messages": [{"role":"user","content":"who is Jim?"}]},
+    config=config # type: ignore
+)
+
+end_time2 = time.perf_counter()
+duration2 = end_time2 - start_time2
+print_timestamp(f"Second agent invocation completed - Duration: {duration2:.3f} seconds")
+
+# print_timestamp("Printing response messages")
+# for m in response2["messages"]:
+#     m.pretty_print()
+
+# print_timestamp("Checking store namespaces")
+# print("--------------------------------------------------")
+# print(store.list_namespaces())
+# print_timestamp("Script execution completed")
+
+# print("--------------------------------------------------")
+# print(store.search(('email_assistant', 'lance', 'collection'), query='Jim'))
